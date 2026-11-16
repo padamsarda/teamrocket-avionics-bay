@@ -1,0 +1,6 @@
+module,board,pcb_L_mm,pcb_W_mm,ic_centre_x_mm,ic_centre_y_mm,ic_top_z_mm,ic_offset_from_pcb_centre_x,ic_offset_from_pcb_centre_y,ic_model_source,position_confidence
+BMI270,7Semi/EVE BMI270 Breakout ES-12135 30x25 (Evelta link),30.0,25.0,16.27,14.25,2.38,1.27,1.75,KiCad Bosch_LGA-14_3x2.5mm (datasheet-accurate package),"board/IC/holes/pins measured from vendor dimensioned CAD render, est. +/-0.15 mm; hole dia unverified"
+LSM6DSO,"BOARD NOT IDENTIFIED - IC only, origin = IC centre",,,0,0,0.86,,,KiCad LGA-14_3x2.5mm (ST LGA-14L 2.5x3x0.86),IC exact; board TBD
+BMP280,Generic GY-BMP280-3.3 6-pin (Robocraze listing),15.0,11.5,6.6,6.8,2.38,-0.9,1.05,KiCad Bosch_LGA-8_2x2.5mm (datasheet-accurate package),"PCB/holes = typical listing dims; IC position from angled photos, est. +/-1 mm - VERIFY"
+MS5611,Generic GY-63 (7-pin),14.0,18.0,10.8,10.1,2.6,3.8,1.1,Own model from MS5611-01BA03 datasheet outline 5.0x3.0x1.0,"PCB = listing spec 18x14; IC/hole/pins from ProtoSupplies top photo, est. +/-0.5 mm"
+ESP32-WROOM-32E,Bare module 18x25.5 (Espressif official STEP),18.0,25.5,7.5,10.29,3.2,-1.5,-2.46,Espressif kicad-libraries ESP32-WROOM-32E.STEP (internal ESP32 QFN located),exact (from vendor model)

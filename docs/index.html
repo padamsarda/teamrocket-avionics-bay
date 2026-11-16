@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TeamRocket Avionics Bay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: single reading column; a wide hero card for the viewer, then file tables grouped by what they are */
+:root{--bg:#eef1f3;--panel:#fff;--ink:#18212b;--muted:#5b6875;--line:#d5dbe1;--accent:#0d7c86;--accent-ink:#fff;--mag:#c414b8;
+  --f-d:"Space Grotesk",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif;--f-m:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#11161b;--panel:#182028;--ink:#e4eaf0;--muted:#93a1ae;--line:#2a3540;--accent:#3cc0c9;--accent-ink:#0b1216;--mag:#f04be6;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-b)}
+main{max-width:1040px;margin:0 auto;padding:32px max(16px,env(safe-area-inset-left,0px)) 64px max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+h1{font:600 clamp(28px,4vw,40px)/1.1 var(--f-d);margin:0;text-wrap:balance}
+h2{font:600 21px/1.2 var(--f-d);margin:0 0 4px}
+.lede{color:var(--muted);max-width:68ch;margin:8px 0 0}
+.hero{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;display:grid;grid-template-columns:1.1fr 1fr;gap:22px;align-items:center}
+.hero pre{margin:0;font:12px/1.45 var(--f-m);color:var(--muted);overflow-x:auto}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:600;padding:11px 18px;border-radius:9px}
+.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px}
+.facts span{font:12px var(--f-m);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+section{display:grid;gap:10px}
+.sub{color:var(--muted);margin:0;max-width:75ch}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+td a{color:var(--accent);font-family:var(--f-m);font-size:13px;word-break:break-all}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-family:var(--f-m);font-size:13px}
+.pics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pics figure{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+.pics img{width:100%;height:auto;display:block;border-radius:6px;background:#fff}
+.pics figcaption{font-size:13px;color:var(--muted);margin-top:6px}
+.note{border-left:3px solid var(--mag);padding:4px 0 4px 12px;color:var(--muted);font-size:14px}
+footer{color:var(--muted);font-size:13px}
+@media (max-width:760px){.hero,.pics{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>TeamRocket Avionics Bay</h1>
+  <p class="lede">Flight computer bay for a Ø70 mm (64 mm ID) rocket: three IMUs and three barometers on one vertical perfboard with every IMU chip centred on the rocket axis, an ESP32, SD logging, two independent pyro channels and a removable printed mount.</p>
+</header>
+
+<div class="hero">
+  <div>
+    <h2>Interactive 3D layout</h2>
+    <p class="sub">Every board as a real 3D model. Move or rotate parts hole by hole, flip them to the back face, see IC-to-axis offsets and collisions live, and switch between the two mount designs.</p>
+    <div class="facts"><span>3/3 IMUs on axis</span><span>2.54 mm grid</span><span>Ø64 tube check</span><span>V1 / V2 mounts</span></div>
+    <a class="btn" href="viewer/">Open the 3D viewer →</a>
+  </div>
+<pre>        [ 2S 600 mAh LiPo ]
+ ══════ TOP CAP Ø63.4 ══════  switches · battery feed
+   ┃ ESP32 + SD (back)     ┃
+   ┃ BMI270 ×2 · LSM6DSO   ┃  ← chips on the axis
+   ┃ MS5611 · BMP280 ×2    ┃
+   ┃ FET A │ FET B         ┃
+ ══════ BOTTOM PLATFORM ════  gas seal · charge wires
+      (charge A) (charge B)
+   2 × M4 rods clamp the stack</pre>
+</div>
+
+<section id="mounts">
+  <h2>Bay mounts</h2>
+  <p class="sub">Two printable mounts built around the current layout. V1: the perfboard slides down grooved side rails into pockets. V2: the perfboard bolts to a printed backplate through four rubber grommets. Print in PETG.</p>
+  <div class="pics">
+    <figure><img src="cad/mounts/V1_slide_rails/V1_slide_rails_views.png" alt="V1 slide-in rails: front, side and cross-section views" loading="lazy"><figcaption>V1 — slide-in rails · perfboard 45.7 × 223.5 mm</figcaption></figure>
+    <figure><img src="cad/mounts/V2_backplate/V2_backplate_views.png" alt="V2 backplate: front, side and cross-section views" loading="lazy"><figcaption>V2 — backplate + grommets · perfboard 45.7 × 246.4 mm</figcaption></figure>
+  </div>
+  <div class="tbl"><table><thead><tr><th>File</th><th>What it is</th><th class="num">Size</th></tr></thead><tbody>
+<tr><td><a href="cad/mounts/V1_slide_rails/V1_lower_platform_with_rails.step" download>V1_lower_platform_with_rails.step</a></td><td>V1 — slide-in rails · Part CAD</td><td class="num">111 kB</td></tr>
+<tr><td><a href="cad/mounts/V1_slide_rails/V1_lower_platform_with_rails.stl" download>V1_lower_platform_with_rails.stl</a></td><td>V1 — slide-in rails · Print file</td><td class="num">68 kB</td></tr>
+<tr><td><a href="cad/mounts/V1_slide_rails/V1_slide_rails_ASSEMBLY.step" download>V1_slide_rails_ASSEMBLY.step</a></td><td>V1 — slide-in rails · Assembly (mount + all boards, public stand-ins)</td><td class="num">34.9 MB</td></tr>
+<tr><td><a href="cad/mounts/V1_slide_rails/V1_slide_rails_views.png" download>V1_slide_rails_views.png</a></td><td>V1 — slide-in rails · Preview: front, side, cross-section</td><td class="num">150 kB</td></tr>
+<tr><td><a href="cad/mounts/V1_slide_rails/V1_top_cap.step" download>V1_top_cap.step</a></td><td>V1 — slide-in rails · Part CAD</td><td class="num">72 kB</td></tr>
+<tr><td><a href="cad/mounts/V1_slide_rails/V1_top_cap.stl" download>V1_top_cap.stl</a></td><td>V1 — slide-in rails · Print file</td><td class="num">92 kB</td></tr>
+<tr><td><a href="cad/mounts/V2_backplate/V2_backplate_ASSEMBLY.step" download>V2_backplate_ASSEMBLY.step</a></td><td>V2 — backplate + grommets · Assembly (mount + all boards, public stand-ins)</td><td class="num">35.8 MB</td></tr>
+<tr><td><a href="cad/mounts/V2_backplate/V2_backplate_views.png" download>V2_backplate_views.png</a></td><td>V2 — backplate + grommets · Preview: front, side, cross-section</td><td class="num">181 kB</td></tr>
+<tr><td><a href="cad/mounts/V2_backplate/V2_lower_platform_with_backplate.step" download>V2_lower_platform_with_backplate.step</a></td><td>V2 — backplate + grommets · Part CAD</td><td class="num">189 kB</td></tr>
+<tr><td><a href="cad/mounts/V2_backplate/V2_lower_platform_with_backplate.stl" download>V2_lower_platform_with_backplate.stl</a></td><td>V2 — backplate + grommets · Print file</td><td class="num">164 kB</td></tr>
+<tr><td><a href="cad/mounts/V2_backplate/V2_top_cap.step" download>V2_top_cap.step</a></td><td>V2 — backplate + grommets · Part CAD</td><td class="num">52 kB</td></tr>
+<tr><td><a href="cad/mounts/V2_backplate/V2_top_cap.stl" download>V2_top_cap.stl</a></td><td>V2 — backplate + grommets · Print file</td><td class="num">90 kB</td></tr>
+<tr><td><a href="cad/mounts/mount_report.json" download>mount_report.json</a></td><td>Mount dimensions (perfboard size, rods, holes)</td><td class="num">1 kB</td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="boards">
+  <h2>Board models</h2>
+  <p class="sub">Each board has a magenta <code>IC_CENTRE_MARKER</code> through the sensing chip. Frame: origin at the PCB's bottom-left corner, Z up, PCB bottom at z = 0.</p>
+  <div class="tbl"><table><thead><tr><th>Module</th><th>Board</th><th class="num">IC x (mm)</th><th class="num">IC y (mm)</th></tr></thead><tbody>
+<tr><td>BMI270</td><td>7Semi/EVE BMI270 Breakout ES-12135 30x25 (Evelta link)</td><td class='num'>16.27</td><td class='num'>14.25</td></tr>
+<tr><td>LSM6DSO</td><td>BOARD NOT IDENTIFIED - IC only, origin = IC centre</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>BMP280</td><td>Generic GY-BMP280-3.3 6-pin (Robocraze listing)</td><td class='num'>6.6</td><td class='num'>6.8</td></tr>
+<tr><td>MS5611</td><td>Generic GY-63 (7-pin)</td><td class='num'>10.8</td><td class='num'>10.1</td></tr>
+<tr><td>ESP32-WROOM-32E</td><td>Bare module 18x25.5 (Espressif official STEP)</td><td class='num'>7.5</td><td class='num'>10.29</td></tr>
+  </tbody></table></div>
+  <div class="tbl"><table><thead><tr><th>File</th><th>What it is</th><th class="num">Size</th></tr></thead><tbody>
+<tr><td><a href="cad/boards/BMI270_7Semi-EVE-Breakout_marked.step" download>BMI270_7Semi-EVE-Breakout_marked.step</a></td><td>BMI270 · 7Semi/EVE breakout ES-12135 (built from vendor dimensioned render)</td><td class="num">592 kB</td></tr>
+<tr><td><a href="cad/boards/LSM6DSO_SmartElex-6DoF_marked.step" download>LSM6DSO_SmartElex-6DoF_marked.step</a></td><td>LSM6DSO · SmartElex 6DoF (from SparkFun SEN-18020 Eagle board, CC BY-SA)</td><td class="num">960 kB</td></tr>
+<tr><td><a href="cad/boards/BMP280_GY-BMP280_public.step" download>BMP280_GY-BMP280_public.step</a></td><td>BMP280 · GY-BMP280 6-pin (public stand-in)</td><td class="num">612 kB</td></tr>
+<tr><td><a href="cad/boards/MS5611_GY-63_public.step" download>MS5611_GY-63_public.step</a></td><td>MS5611 · GY-63 (public stand-in)</td><td class="num">601 kB</td></tr>
+<tr><td><a href="cad/boards/ESP32-DevKitC-V4_public.step" download>ESP32-DevKitC-V4_public.step</a></td><td>ESP32 · DevKitC V4 (public stand-in, official Espressif WROOM-32E module)</td><td class="num">20.6 MB</td></tr>
+<tr><td><a href="cad/boards/ESP32-WROOM-32E_marked.step" download>ESP32-WROOM-32E_marked.step</a></td><td>ESP32-WROOM-32E bare module (Espressif model, QFN centre marked)</td><td class="num">19.1 MB</td></tr>
+<tr><td><a href="cad/boards/SD_Waveshare_MicroSD_Board.step" download>SD_Waveshare_MicroSD_Board.step</a></td><td>Waveshare Micro SD storage board (from vendor drawing), pins into perfboard</td><td class="num">437 kB</td></tr>
+<tr><td><a href="cad/boards/SD_Waveshare_MicroSD_Board_outward-pins.step" download>SD_Waveshare_MicroSD_Board_outward-pins.step</a></td><td>Waveshare Micro SD board, header pins outward</td><td class="num">436 kB</td></tr>
+<tr><td><a href="cad/boards/LiPo_2S_600mAh_PLACEHOLDER.step" download>LiPo_2S_600mAh_PLACEHOLDER.step</a></td><td>2S 600 mAh LiPo placeholder block</td><td class="num">83 kB</td></tr>
+<tr><td><a href="cad/boards/IC_centres.csv" download>IC_centres.csv</a></td><td>IC centre coordinates for every board (mm, PCB-corner frame)</td><td class="num">1 kB</td></tr>
+<tr><td><a href="cad/boards/previews/BMI270_7Semi-EVE-Breakout_marked.png" download>BMI270_7Semi-EVE-Breakout_marked.png</a></td><td>Top view · BMI270_7Semi-EVE-Breakout_marked</td><td class="num">37 kB</td></tr>
+<tr><td><a href="cad/boards/previews/LSM6DSO_SmartElex-6DoF_marked.png" download>LSM6DSO_SmartElex-6DoF_marked.png</a></td><td>Top view · LSM6DSO_SmartElex-6DoF_marked</td><td class="num">39 kB</td></tr>
+  </tbody></table></div>
+  <p class="note">The GY-BMP280, GY-63 and DevKitC models in the private build come from GrabCAD, whose files can't be republished. This site uses stand-ins in the same frames. Download the originals yourself (<a href="https://grabcad.com/library/bmp280-module-1">BMP280</a>, <a href="https://grabcad.com/library/gy-63-ms5611-pressure-sensor-1">GY-63</a>, <a href="https://grabcad.com/library/esp32-devkitc-v4-1">DevKitC V4</a>) and run the re-orient scripts below.</p>
+</section>
+
+<section id="layout">
+  <h2>Layout data</h2>
+  <div class="tbl"><table><thead><tr><th>File</th><th>What it is</th><th class="num">Size</th></tr></thead><tbody>
+<tr><td><a href="cad/layout/layout_from_viewer.json" download>layout_from_viewer.json</a></td><td>Exact board placements exported from the viewer</td><td class="num">7 kB</td></tr>
+<tr><td><a href="cad/layout/sensor_plate_placement_v0.csv" download>sensor_plate_placement_v0.csv</a></td><td>First on-axis plate: pin-1 holes and IC offsets</td><td class="num">0 kB</td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="sources">
+  <h2>Third-party source models</h2>
+  <p class="sub">Unmodified models used to build the boards. KiCad and Espressif libraries and SparkFun hardware are CC BY-SA 4.0; credit and license files are included.</p>
+  <div class="tbl"><table><thead><tr><th>File</th><th>What it is</th><th class="num">Size</th></tr></thead><tbody>
+<tr><td><a href="cad/sources/Bosch_LGA-14_3x2.5mm_P0.5mm.step" download>Bosch_LGA-14_3x2.5mm_P0.5mm.step</a></td><td>KiCad · Bosch LGA-14 (BMI270)</td><td class="num">121 kB</td></tr>
+<tr><td><a href="cad/sources/LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y.step" download>LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y.step</a></td><td>KiCad · LGA-14 2.5×3 (LSM6DSO)</td><td class="num">120 kB</td></tr>
+<tr><td><a href="cad/sources/Bosch_LGA-8_2x2.5mm_P0.65mm_ClockwisePinNumbering.step" download>Bosch_LGA-8_2x2.5mm_P0.65mm_ClockwisePinNumbering.step</a></td><td>KiCad · Bosch LGA-8 (BMP280)</td><td class="num">74 kB</td></tr>
+<tr><td><a href="cad/sources/TO-220-3_Vertical.step" download>TO-220-3_Vertical.step</a></td><td>KiCad · TO-220-3 vertical (IRLZ44N / IRL530)</td><td class="num">85 kB</td></tr>
+<tr><td><a href="cad/sources/ESP32-WROOM-32E.STEP" download>ESP32-WROOM-32E.STEP</a></td><td>Espressif kicad-libraries · ESP32-WROOM-32E</td><td class="num">12.5 MB</td></tr>
+<tr><td><a href="cad/sources/SparkFun_6DoF_LSM6DSO.brd" download>SparkFun_6DoF_LSM6DSO.brd</a></td><td>SparkFun · Qwiic 6DoF LSM6DSO Eagle board</td><td class="num">297 kB</td></tr>
+<tr><td><a href="cad/sources/SparkFun_LICENSE.md" download>SparkFun_LICENSE.md</a></td><td>SparkFun license</td><td class="num">3 kB</td></tr>
+<tr><td><a href="cad/sources/KiCad_Espressif_LICENSE.md" download>KiCad_Espressif_LICENSE.md</a></td><td>Espressif / KiCad library license (CC BY-SA 4.0 with exception)</td><td class="num">1 kB</td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="scripts">
+  <h2>Build scripts</h2>
+  <p class="sub">CadQuery (Python). Everything above can be regenerated from these.</p>
+  <div class="tbl"><table><thead><tr><th>File</th><th>What it does</th><th class="num">Size</th></tr></thead><tbody>
+<tr><td><a href="scripts/build_models.py" download>build_models.py</a></td><td>BMI270 / LiPo / IC-only models + marker</td><td class="num">10 kB</td></tr>
+<tr><td><a href="scripts/build_lsm6dso.py" download>build_lsm6dso.py</a></td><td>LSM6DSO board from SparkFun .brd</td><td class="num">5 kB</td></tr>
+<tr><td><a href="scripts/build_sd_board.py" download>build_sd_board.py</a></td><td>Waveshare SD board</td><td class="num">2 kB</td></tr>
+<tr><td><a href="scripts/build_public_standins.py" download>build_public_standins.py</a></td><td>Public stand-ins for GrabCAD boards</td><td class="num">5 kB</td></tr>
+<tr><td><a href="scripts/build_bmp280_from_grabcad.py" download>build_bmp280_from_grabcad.py</a></td><td>Re-orient + mark your own GrabCAD BMP280 download</td><td class="num">4 kB</td></tr>
+<tr><td><a href="scripts/reorient_mark_grabcad.py" download>reorient_mark_grabcad.py</a></td><td>Re-orient + mark your own GY-63 / DevKitC downloads</td><td class="num">3 kB</td></tr>
+<tr><td><a href="scripts/build_bay_mounts.py" download>build_bay_mounts.py</a></td><td>Both bay mounts (V1 rails, V2 backplate)</td><td class="num">12 kB</td></tr>
+<tr><td><a href="scripts/render_views.py" download>render_views.py</a></td><td>Front/side/section previews</td><td class="num">2 kB</td></tr>
+<tr><td><a href="scripts/export_viewer_meshes.py" download>export_viewer_meshes.py</a></td><td>Board meshes for the viewer</td><td class="num">2 kB</td></tr>
+<tr><td><a href="scripts/export_to220_mesh.py" download>export_to220_mesh.py</a></td><td>TO-220 mesh</td><td class="num">1 kB</td></tr>
+<tr><td><a href="scripts/export_mount_meshes.py" download>export_mount_meshes.py</a></td><td>Mount meshes for the viewer</td><td class="num">2 kB</td></tr>
+<tr><td><a href="scripts/inspect_step.py" download>inspect_step.py</a></td><td>List solids + bounding boxes in a STEP</td><td class="num">1 kB</td></tr>
+  </tbody></table></div>
+</section>
+
+<footer>Padam Sarda · BITS Pilani · CAD released under CC BY-SA 4.0 (inherits from KiCad / Espressif / SparkFun sources); scripts MIT.</footer>
+</main>
+</body>
+</html>

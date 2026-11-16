@@ -1,0 +1,7 @@
+board,ic_lateral_err_mm,ic_normal_err_mm,ic_radial_err_mm,ic_height_along_axis_mm,pin1_hole_col,pin1_hole_row
+BMP280_A,-0.155,0.045,0.161,8.59,-2,1
+BMI270_A,0.0,0.0,0.0,29.53,-3,7
+LSM6DSO,0.0,0.0,0.0,57.15,-4,20
+BMI270_B,0.0,0.0,0.0,87.95,-3,30
+MS5611,0.3,-0.21,0.366,111.99,-3,41
+BMP280_B,-0.155,0.045,0.161,133.06,-2,50
