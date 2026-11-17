@@ -1,6 +1,10 @@
 # TeamRocket Avionics Bay
 
-Flight-computer bay for a Ø70 mm rocket (64 mm ID): 3 IMUs + 3 barometers on one vertical perfboard with every IMU chip on the rocket axis, ESP32-DevKitC, SD logging (SDMMC 1-bit), two pyro channels with different-vendor MOSFETs, and two printable removable mounts.
+Flight-computer bay for a Ø70 mm rocket (64 mm ID). Two perfboards sit back to back with their parts facing out:
+- **Board 1:** 3 IMUs and 3 barometers, with every IMU chip on the rocket axis, plus two pyro channels (different-vendor MOSFETs) and the buzzer.
+- **Board 2:** ESP32-DevKitC, SD logging (SDMMC 1-bit) and the 3.3 V buck.
+
+It has two printable removable mounts. The earlier single-board layout and its mounts are kept for reference.
 
 **Site:** https://padamsarda.github.io/teamrocket-avionics-bay/ · **3D viewer:** https://padamsarda.github.io/teamrocket-avionics-bay/viewer/
 
@@ -9,7 +13,8 @@ docs/                     ← GitHub Pages root
 ├── index.html            landing page with every download
 ├── viewer/               interactive 3D layout (three.js)
 ├── cad/
-│   ├── mounts/           V1 slide-in rails · V2 backplate (STL to print, STEP parts, full assemblies)
+│   ├── mounts_sandwich/  CURRENT: V1 slide-in rails · V2 frame + 6 grommets (STL, STEP parts, assemblies)
+│   ├── mounts/           superseded single-board mounts
 │   ├── boards/           board models with IC-centre markers + IC_centres.csv
 │   ├── layout/           exact placements exported from the viewer
 │   └── sources/          unmodified KiCad / Espressif / SparkFun source files + licenses

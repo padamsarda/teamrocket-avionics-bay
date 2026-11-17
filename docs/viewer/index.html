@@ -61,7 +61,7 @@ textarea{width:100%;box-sizing:border-box;height:90px;font-family:var(--f-mono);
     <canvas id="c" aria-label="3D view of the sensor plate"></canvas>
     <div class="views">
       <button data-view="iso">Iso</button><button data-view="front">Front (sensor face)</button>
-      <button data-view="nose">From nose</button><button data-view="side">Side</button><button data-view="back">Back</button>
+      <button data-view="nose">From nose</button><button data-view="side">Side</button><button data-view="back">Back (board 2)</button>
     </div>
     <div class="legend">
       <span><i style="background:#ff00ff"></i>IC centre</span>
@@ -73,7 +73,9 @@ textarea{width:100%;box-sizing:border-box;height:90px;font-family:var(--f-mono);
       <label><input type="checkbox" id="tTube" checked> Ø64 tube</label>
       <label><input type="checkbox" id="tAxis" checked> Axis</label>
       <label><input type="checkbox" id="tFoot"> Footprints</label>
-      <label>Mount <select id="tMount" aria-label="Bay mount version"><option value="none">none</option><option value="v1">V1 slide-in rails</option><option value="v2">V2 backplate</option></select></label>
+      <label><input type="checkbox" id="tB2" checked> Board 2</label>
+      <label>Layout <select id="tMode" aria-label="Layout version"><option value="sandwich">Sandwich (2 boards)</option><option value="single">Single board (old)</option></select></label>
+      <label id="mountLab">Mount <select id="tMount" aria-label="Bay mount version"><option value="none">none</option><option value="v1">V1 slide-in rails</option><option value="v2">V2 backplate (frame + grommets)</option></select></label>
     </div>
   </div>
 
@@ -89,11 +91,11 @@ textarea{width:100%;box-sizing:border-box;height:90px;font-family:var(--f-mono);
         <div class="pad">
           <span></span><button id="mUp" aria-label="Move toward nose">▲</button><span></span>
           <button id="mLeft" aria-label="Move left">◀</button><button id="mRot" aria-label="Rotate 90 degrees">⟲</button><button id="mRight" aria-label="Move right">▶</button>
-          <span></span><button id="mDown" aria-label="Move toward tail">▼</button><button id="mFlip" aria-label="Flip to other face" title="Flip front/back face (F)">⇆</button>
+          <button id="mBrd" aria-label="Move to the other board" title="Move to the other board (B)">⇅</button><button id="mDown" aria-label="Move toward tail">▼</button><button id="mFlip" aria-label="Flip to other face" title="Flip front/back face (F)">⇆</button>
         </div>
         <dl class="readout" id="readout"></dl>
       </div>
-      <p class="kbd" style="margin:8px 0 0">Keys: arrows move · R rotates · F flips face · View: left-drag orbit · wheel-click drag pan · scroll zoom</p>
+      <p class="kbd" style="margin:8px 0 0">Keys: arrows move · R rotates · F flips face · B swaps board · View: left-drag orbit · wheel-click drag pan · scroll zoom</p>
     </div>
 
     <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0">
@@ -117,6 +119,8 @@ textarea{width:100%;box-sizing:border-box;height:90px;font-family:var(--f-mono);
 <script>
 (() => {
 const P = 2.54, GU0 = -P/2, TUBE_R = 32, PLATE_T = 2.4;   // thicker perfboard (face stays fixed, extra thickness goes backwards)
+let MODE = "sandwich"; try { MODE = localStorage.getItem("sensorPlateMode") || "sandwich"; } catch(e){}
+const SPACER = 8;                   // sandwich: standoff length = gap between board 1's solder side and board 2's solder side (mm); only trimmed pins + wiring live here
 const PLATE_TOP = -4.49;            // sensor face of the perfboard, mm from axis (puts IMU IC centroids on axis)
 // ---- board library (local frame: origin = PCB bottom-left, z up, mm) ----
 const range = (n,f) => Array.from({length:n},(_,i)=>f(i));
@@ -135,7 +139,8 @@ const LIB = {
             pins: range(9,i=>[1.27,1.47+i*P])},
   // placeholders (boxes): size = [across, along, height] in mm
   LDO:   {label:"LDO 3.3 V sensor rail · TI LP2950-33 (TO-92)", kind:"Power", box:[5.2,4.2,5.2], col:0x222222, sp:3, pins:[[1.27,1.27]]},
-  BUCK:  {label:"Buck 3.3 V 1 A · Pololu D24V10F3", kind:"Power", box:[12.7,17.8,3.5], col:0x1f7a3a, sp:0, pins:[[1.27,1.27]]},
+  BUCK:  {label:"Buck 3.3 V 600 mA fixed · 7Semi (placeholder, 16 × 10 × 3)", kind:"Power", box:[10,16,3], col:0x1f7a3a, sp:2, pins:[[1.27,1.27]]},
+  SPACER:{label:"M3 × 12 standoff through both boards", kind:"Spacer", box:[6,6,SPACER], col:0xb9bec4, sp:0, pins:[[3,3]], hex:true},
   TO220: {label:"TO-220 MOSFET (KiCad TO-220-3 Vertical model)", kind:"Power", ic:[2.54,0.9], zc:9, sp:0, pins:[[0,0],[2.54,0],[5.08,0]]},
   BUZZ:  {label:"Buzzer SFM-27-I (Ø23 × 15, 3–24 V)", kind:"Power", box:[23,23,15], col:0x111111, sp:0, pins:[[1.27,1.27]], cylZ:true},
   PYRO:  {label:"Ejection charge Ø10 × 30 mm (placeholder)", kind:"Pyro", box:[10,30,10], col:0xb3261e, sp:0, pins:[[0,0]], cyl:true},
@@ -144,39 +149,44 @@ const LIB = {
 for (const k in LIB){ const L = LIB[k];
   if (L.box){ L.bmin=[0,0,0]; L.bmax=[L.box[0],L.box[1],L.box[2]]; L.ic=[L.box[0]/2,L.box[1]/2]; L.zc=L.box[2]/2; }
   else { const m = window.BOARD_MESH[k]; L.bmin = m.bmin.slice(); L.bmax = m.bmax.slice(); } }
-LIB.ESP32.bmax[1] += 15;   // 15 mm antenna keep-out beyond the board end counts as part of its footprint
-const DEFAULT_ORDER = [ // bottom -> nose; baros grouped, same-type IMUs adjacent, ESP32 on top (antenna toward nose)
-  ["BMP280_A","BMP280",0],["BMP280_B","BMP280",0],["MS5611","MS5611",1],
-  ["LSM6DSO","LSM6DSO",0],["BMI270_A","BMI270",0],["BMI270_B","BMI270",0],["SD","SDCARD",0],["ESP32","ESP32",0],
-  ["BATTERY","BATT",0],["PYRO_A","PYRO",0],["PYRO_B","PYRO",0],
-  ["MOSFET_A","TO220",0],["MOSFET_B","TO220",0],["BUZZER","BUZZ",0]];
+Object.assign(LIB.BMI270,{top:2.6}); Object.assign(LIB.LSM6DSO,{top:2.5}); Object.assign(LIB.BMP280,{top:2.6}); Object.assign(LIB.MS5611,{top:3.2});   // real component-top height (mesh bbox includes the marker)
+const BTOP = {1: PLATE_TOP, 2: PLATE_TOP - PLATE_T - SPACER};      // +Z face of each perfboard; board 2 sits BEHIND board 1, its parts face outward (-Z)
+const brdOf = b => (MODE==="sandwich" && b.brd===2) ? 2 : 1;
+LIB.ESP32.bmax[1] += 15; LIB.ESP32.ko = 15; LIB.ESP32.kox = [5.05, 23.05];   // 15 mm antenna keep-out beyond the board end counts as part of its footprint
 // what each part talks over (shown as 3D labels); CS pins are a proposal on VSPI (SCK 18 · MISO 19 · MOSI 23)
 const PROTO = { BMP280_A:"SPI · CS GPIO4", BMP280_B:"SPI · CS GPIO13", MS5611:"SPI · CS GPIO16 (PS→GND)",
   LSM6DSO:"SPI · CS GPIO17", BMI270_A:"SPI · CS GPIO21", BMI270_B:"SPI · CS GPIO22",
   ESP32:"SPI master · VSPI 18/19/23", LDO_3V3:"TI LP2950-33 → sensor rail", BATTERY:"2S 600 mAh",
-  SD:"SDMMC 1-bit · CLK14 CMD15 D0→GPIO2 · CD→39 (back, pins into board)", PYRO_A:"charge A · GPIO32 channel", PYRO_B:"charge B · GPIO33 channel",
+  SD:"SDMMC 1-bit · CLK14 CMD15 D0→GPIO2 · CD→39", PYRO_A:"charge A · GPIO32 channel", PYRO_B:"charge B · GPIO33 channel",
   LM317_A:"ST LM317T · 1.04 A limit · ch A", LM317_B:"ST LM317T · 1.04 A limit · ch B",
   MOSFET_A:"Infineon IRLZ44NPBF · gate GPIO32", MOSFET_B:"Vishay IRL530PBF · gate GPIO33",
-  BUZZER:"SFM-27-I buzzer · GPIO5 via 2N7000", BUCK_3V3:"Pololu D24V10F3 → ESP32 + SD (back face)" };
+  BUZZER:"SFM-27-I buzzer · GPIO5 via 2N7000", BUCK_3V3:"7Semi 3.3 V 600 mA → ESP32 + SD (placeholder)" };
 let MOUNT = "none"; try { MOUNT = localStorage.getItem("sensorPlateMount") || "none"; } catch(e){}
+const mnt = () => MOUNT;
+// sandwich mounts (CAD/Bay_Mount_Sandwich): per-board perfboard extents [u0,u1,v0,v1] + battery / charge shifts
+const MOUNT_EXT_S = { v1:{1:[-25.4,25.4,-3.81,168.91], 2:[-22.86,22.86,1.27,158.75], batt:2.73, chg:-4.25},
+                      v2:{1:[-29.21,29.21,-3.81,168.91], 2:[-22.86,22.86,1.27,158.75], batt:6.73, chg:-8.25} };
 // mount versions (from CAD/Bay_Mount): enlarged perfboard extents the printed parts were built around
 const MOUNT_EXT = { v1:[-22.86,22.86,-3.81,219.71], v2:[-22.86,22.86,-3.81,242.57] };
-const offPlateT = t => LIB[t].kind==="Batt" || LIB[t].kind==="Pyro";
-const offPlate = b => (typeof b === "string") ? offPlateT(b) : (LIB[b.type].kind==="Pyro" || (LIB[b.type].kind==="Batt" && b.face!=="back"));
+const offPlate = b => (LIB[b.type].kind==="Pyro" || (LIB[b.type].kind==="Batt" && b.face!=="back"));
 const BACK_GAP = {SDCARD:2.5, BATT:1.0, BUZZ:2.0, BUCK:2.0};          // SD: header plastic (pins go into the perfboard); battery: foam pad (mm)
-const DEFAULT_FACE = {SD:"back", BUZZER:"back", BUCK_3V3:"back"};
 
 // ---- geometry helpers ----
 const rot = (r,[x,y]) => { r=((r%4)+4)%4; return r===0?[x,y]:r===1?[-y,x]:r===2?[-x,-y]:[y,-x]; };
 function geom(b){ // world positions given b={type,r,cu,cv,face}
-  const L = LIB[b.type], p1 = rot(b.r, L.pins[0]), back = b.face==="back" && !offPlate(b) ;
+  const L = LIB[b.type], p1 = rot(b.r, L.pins[0]), back = b.face==="back" && !offPlate(b) && L.kind!=="Spacer", PT = BTOP[brdOf(b)];
   const sg = back ? -1 : 1;                                   // back face = board flipped 180° about the rocket axis direction
-  const ou = GU0 + b.cu*P - sg*p1[0], ov = b.cv*P - p1[1] + ((MOUNT==="v2" && L.kind==="Batt" && offPlate(b)) ? 22.51 : 0);
+  const ou = GU0 + b.cu*P - sg*p1[0], ov = b.cv*P - p1[1] + (MODE==="single" ? ((mnt()==="v2" && L.kind==="Batt" && offPlate(b)) ? 22.51 : 0)
+        : (mnt()!=="none" && offPlate(b)) ? (L.kind==="Batt" ? MOUNT_EXT_S[mnt()].batt : MOUNT_EXT_S[mnt()].chg) : 0);
   const ic = rot(b.r, L.ic); const corners = [[L.bmin[0],L.bmin[1]],[L.bmax[0],L.bmin[1]],[L.bmax[0],L.bmax[1]],[L.bmin[0],L.bmax[1]]].map(c=>rot(b.r,c));
   const us = corners.map(c=>sg*c[0]+ou), vs = corners.map(c=>c[1]+ov);
-  const nb = offPlate(b) ? -L.box[2]/2 : back ? PLATE_TOP - PLATE_T - (BACK_GAP[b.type] ?? 2.0) : PLATE_TOP + L.sp;
+  const nb = offPlate(b) ? -L.box[2]/2 : L.kind==="Spacer" ? BTOP[2] : back ? PT - PLATE_T - (BACK_GAP[b.type] ?? (MODE==="sandwich" ? L.sp : 2.0)) : PT + L.sp;
   const nA = nb + sg*L.bmax[2], nB = nb + sg*L.bmin[2];
-  return {ou, ov, nb, back, icU: sg*ic[0]+ou, icV: ic[1]+ov, icN: nb + sg*L.zc,
+  const rectW = (x0,y0,x1,y1) => { const c=[[x0,y0],[x1,y1]].map(q=>rot(b.r,q)), U=c.map(q=>sg*q[0]+ou), V=c.map(q=>q[1]+ov);
+    return {u0:Math.min(...U), u1:Math.max(...U), v0:Math.min(...V), v1:Math.max(...V)}; };
+  const body = L.ko ? rectW(L.bmin[0],L.bmin[1],L.bmax[0],L.bmax[1]-L.ko) : null;            // PCB only, without the antenna keep-out
+  const koR = L.ko ? rectW(L.kox[0],L.bmax[1]-L.ko,L.kox[1],L.bmax[1]) : null;
+  return {body, koR, ou, ov, nb, back, pt:PT, brd:L.kind==="Spacer"?0:brdOf(b), icU: sg*ic[0]+ou, icV: ic[1]+ov, icN: nb + sg*L.zc,
           u0: Math.min(...us), u1: Math.max(...us), v0: Math.min(...vs), v1: Math.max(...vs),
           ntop: Math.max(nA,nB), nbot: Math.min(nA,nB)};
 }
@@ -184,41 +194,26 @@ const isSensor = b => ["IMU","Baro"].includes(LIB[b.type].kind);
 function centerOf(b){ const g=geom(b); return isSensor(b) ? [g.icU, g.icV] : [(g.u0+g.u1)/2, (g.v0+g.v1)/2]; }   // sensors pivot about their IC
 function placeCenter(b, cu0, cv0){ // re-snap so the pivot returns to (cu0,cv0) after a rotate/flip
   const [u,v]=centerOf(b); b.cu += Math.round((cu0-u)/P); b.cv += Math.round((cv0-v)/P); }
-function autoLayout(){
-  const out = []; let cursor = 0; const pyros = [];
-  for (const [id,type,r] of DEFAULT_ORDER){
-    if (type==="PYRO"){ pyros.push([id,type,r]); continue; }
-    if (DEFAULT_FACE[id]==="back"){ continue; }
-    const L = LIB[type], p1 = rot(r,L.pins[0]), ic = rot(r,L.ic);
-    const target = (type==="ESP32"||type==="SDCARD"||L.box) ? (()=>{ const c=rot(r,[(L.bmin[0]+L.bmax[0])/2,(L.bmin[1]+L.bmax[1])/2]); return p1[0]-c[0]; })() : p1[0]-ic[0];
-    const cu = Math.round((target - GU0)/P);
-    const cs = [[L.bmin[0],L.bmin[1]],[L.bmax[0],L.bmin[1]],[L.bmax[0],L.bmax[1]],[L.bmin[0],L.bmax[1]]].map(c=>rot(r,c));
-    const vmin = Math.min(...cs.map(c=>c[1])), vmax = Math.max(...cs.map(c=>c[1]));
-    const cv = Math.ceil((cursor - vmin + p1[1])/P - 1e-9);
-    out.push({id,type,r,cu,cv});
-    cursor = cv*P - p1[1] + vmax + (id==="ESP32" ? 12 : 1.5);
-  }
-  const esp = out.find(b=>b.type==="ESP32");
-  for (const [id,type,r] of DEFAULT_ORDER){ if (DEFAULT_FACE[id]!=="back") continue;
-    const b={id,type,r,cu:0,cv:0,face:"back"}; const ge=geom(esp); const g=geom(b);
-    b.cu += Math.round((0-(g.u0+g.u1)/2)/P); b.cv += Math.round((ge.v0+2-g.v0)/P); out.push(b); }
-  let below = Math.min(...out.filter(b=>!offPlate(b)).map(b=>geom(b).v0)) - 10;   // stack pyro blocks under the plate
-  pyros.forEach(([id,type,r],k)=>{ const L=LIB[type], h=L.box[1], uc = k===0 ? -7 : 7;   // two charges side by side
-    out.push({id,type,r,cu:Math.round((uc-L.box[0]/2-GU0)/P), cv:Math.floor((below-h)/P)}); });
-  return out;
-}
-let layout;
-try { const s = JSON.parse(localStorage.getItem("sensorPlateLayout.v5")||"null"); if (Array.isArray(s) && s.length===DEFAULT_ORDER.length) layout = s; } catch(e){}
-const PRESET = [ // Padam's layout, 16 Nov 2026
- ["BMP280_A","BMP280",0,-2,7,"front"],["BMP280_B","BMP280",0,-2,12,"front"],
- ["MS5611","MS5611",1,4,17,"front"],["LSM6DSO","LSM6DSO",0,-4,25,"front"],["BMI270_A","BMI270",0,-3,35,"front"],
- ["BMI270_B","BMI270",0,-3,46,"front"],["ESP32","ESP32",0,-5,57,"front"],["BATTERY","BATT",0,-6,89,undefined],
- ["SD","SDCARD",2,-6,56,"back"],["PYRO_A","PYRO",0,-4,-18,undefined],["PYRO_B","PYRO",0,1,-18,undefined],
- ["MOSFET_A","TO220",0,-3,2,"front"],["MOSFET_B","TO220",0,2,2,"front"],["BUZZER","BUZZ",0,4,66,"back"]
-].map(([id,type,r,cu,cv,face])=>({id,type,r,cu,cv,face}));
-const defaultLayout = () => (PRESET.length===DEFAULT_ORDER.length ? PRESET.map(b=>({...b})) : autoLayout());
-if (!layout) layout = defaultLayout();
-const save = () => { try { localStorage.setItem("sensorPlateLayout.v5", JSON.stringify(layout)); } catch(e){} };
+const mk = rows => rows.map(([id,type,r,cu,cv,face,brd])=>({id,type,r,cu,cv,face,brd}));
+const SENSORS = [["BMP280_A","BMP280",0,-2,7,"front",1],["BMP280_B","BMP280",0,-2,12,"front",1],["MS5611","MS5611",1,4,17,"front",1],
+ ["LSM6DSO","LSM6DSO",0,-4,25,"front",1],["BMI270_A","BMI270",0,-3,35,"front",1],["BMI270_B","BMI270",0,-3,46,"front",1]];   // unchanged between layouts
+const PRESETS = {
+ single: mk([...SENSORS, // Padam's layout, 16 Nov 2026
+  ["ESP32","ESP32",0,-5,57,"front"],["BATTERY","BATT",0,-6,89,undefined],
+  ["SD","SDCARD",2,-6,56,"back"],["PYRO_A","PYRO",0,-4,-18,undefined],["PYRO_B","PYRO",0,1,-18,undefined],
+  ["MOSFET_A","TO220",0,-3,2,"front"],["MOSFET_B","TO220",0,2,2,"front"],["BUZZER","BUZZ",0,4,66,"back"]]),
+ sandwich: mk([...SENSORS, // board 1 (front): sensors + FETs + buzzer, all facing out; board 2 (8 mm behind): ESP32, SD, buck, facing out the back
+  ["MOSFET_A","TO220",0,-3,2,"front",1],["MOSFET_B","TO220",0,2,2,"front",1],["BUZZER","BUZZ",0,-4,56,"front",1],
+  ["PYRO_A","PYRO",0,-4,-14,undefined],["PYRO_B","PYRO",0,1,-14,undefined],["BATTERY","BATT",0,-6,67,undefined],
+  ["SD","SDCARD",0,4,4,"back",2],["ESP32","ESP32",0,5,26,"back",2],["BUCK_3V3","BUCK",0,2,56,"back",2],
+  ["SP_BL","SPACER",0,-7,2,"front",1],["SP_BR","SPACER",0,8,2,"front",1],["SP_ML","SPACER",0,-7,31,"front",1],
+  ["SP_MR","SPACER",0,8,31,"front",1],["SP_TL","SPACER",0,-7,60,"front",1],["SP_TR","SPACER",0,8,60,"front",1]]) };
+const lsKey = () => MODE==="single" ? "sensorPlateLayout.v5" : "sensorPlateLayout.v8.sandwich";
+const defaultLayout = () => PRESETS[MODE].map(b=>({...b}));
+function loadLayout(){ let st=null; try { st = JSON.parse(localStorage.getItem(lsKey())||"null"); } catch(e){}
+  const P0 = PRESETS[MODE]; return (Array.isArray(st) && st.length===P0.length && st.every((b,i)=>b.id===P0[i].id)) ? st : defaultLayout(); }
+let layout = loadLayout();
+const save = () => { try { localStorage.setItem(lsKey(), JSON.stringify(layout)); } catch(e){} };
 let selected = layout.findIndex(b=>b.type==="LSM6DSO");
 
 // ---- three.js scene: X = across plate (U), Y = rocket axis (V), Z = plate normal (N) ----
@@ -258,20 +253,26 @@ const SHORT = { BMP280_A:"BMP280 A · CS4", BMP280_B:"BMP280 B · CS13", MS5611:
   BMI270_A:"BMI270 A · CS21", BMI270_B:"BMI270 B · CS22", ESP32:"ESP32", SD:"SD · SDMMC", LDO_3V3:"LDO 3V3",
   BUCK_3V3:"Buck 3V3", BATTERY:"Battery 2S", PYRO_A:"Charge A", PYRO_B:"Charge B", LM317_A:"LM317 A", LM317_B:"LM317 B",
   MOSFET_A:"IRLZ44N · G32", MOSFET_B:"IRL530 · G33", BUZZER:"Buzzer · G5" };
-const boardObjs = layout.map((b,i)=>{
+let boardObjs = [];
+const makeObj = (b,i)=>{
   const grp = new THREE.Group(); const L0 = LIB[b.type]; let m;
   if (L0.box){ m = new THREE.Group();
     const bx = new THREE.Mesh(L0.cyl ? new THREE.CylinderGeometry(L0.box[0]/2, L0.box[0]/2, L0.box[1], 32)
-      : L0.cylZ ? new THREE.CylinderGeometry(L0.box[0]/2, L0.box[0]/2, L0.box[2], 40).rotateX(Math.PI/2) : new THREE.BoxGeometry(...L0.box),
+      : L0.cylZ ? new THREE.CylinderGeometry(L0.box[0]/2, L0.box[0]/2, L0.box[2], 40).rotateX(Math.PI/2)
+      : L0.hex ? new THREE.CylinderGeometry(3.1, 3.1, L0.box[2], 6).rotateX(Math.PI/2) : new THREE.BoxGeometry(...L0.box),
       new THREE.MeshStandardMaterial({color:L0.col, roughness:.6, transparent:L0.kind==="Batt", opacity:L0.kind==="Batt"?0.85:1}));
     bx.position.set(L0.box[0]/2,L0.box[1]/2,L0.box[2]/2); m.add(bx);
     const ed = new THREE.LineSegments(new THREE.EdgesGeometry(bx.geometry), new THREE.LineBasicMaterial({color:0x111111})); ed.position.copy(bx.position); m.add(ed);
+    if (L0.hex){ const sc = new THREE.Mesh(new THREE.CylinderGeometry(2.7,2.7,L0.box[2]+2*PLATE_T+4,20).rotateX(Math.PI/2), new THREE.MeshStandardMaterial({color:0x8d9399, roughness:.4, metalness:.5}));
+      sc.position.copy(bx.position); m.add(sc); }
   } else m = proto[b.type].clone();
-  { const t = SHORT[b.id] || b.id.replace("_"," "), lab = makeLabel(t);
+  if (L0.kind!=="Spacer") { const t = SHORT[b.id] || b.id.replace("_"," "), lab = makeLabel(t);
     const cx=(L0.bmin[0]+L0.bmax[0])/2, top=L0.box? L0.box[1]/2 : Math.min(L0.bmax[1], (b.type==="ESP32"? 54.26 : L0.bmax[1]));
     lab.position.set(cx, L0.box? top : top-2.2, (L0.box? L0.box[2] : L0.bmax[2]) + 3); lab.userData.keepUpright = true; m.add(lab); }
   if (b.type==="ESP32"){ const ko = new THREE.Mesh(new THREE.BoxGeometry(18,15,6), new THREE.MeshBasicMaterial({color:0xff8800, transparent:true, opacity:.15, depthWrite:false}));
-    ko.position.set(14.05, 54.26+7.5, 3); m.add(ko); const kl = makeLabel("antenna clear"); kl.position.set(14.05, 62, 7); m.add(kl); }
+    ko.position.set(14.05, 54.26+7.5, 3); m.add(ko); const kl = makeLabel("antenna clear"); kl.position.set(14.05, 62, 7); m.add(kl);
+    const up = new THREE.Mesh(new THREE.BoxGeometry(11,20,7), new THREE.MeshBasicMaterial({color:0x3377ff, transparent:true, opacity:.13, depthWrite:false}));
+    up.position.set(14.05, -10.6, 3); m.add(up); const ul = makeLabel("USB plug"); ul.position.set(14.05, -12, 8); m.add(ul); }
   grp.add(m); grp.userData.idx = i;
   if (L0.kind === "IMU" || L0.kind === "Baro"){
     const L = LIB[b.type];
@@ -281,27 +282,29 @@ const boardObjs = layout.map((b,i)=>{
     mk.add(new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,10,8).rotateX(Math.PI/2), new THREE.MeshBasicMaterial({color:0xff00ff})));
     mk.position.set(L.ic[0], L.ic[1], L.zc); grp.add(mk);
   }
-  const box = new THREE.BoxHelper(m, 0xffaa00); box.visible = false; grp.add(box); grp.userData.box = box;
+  const box = new THREE.BoxHelper(m, 0xffaa00); box.visible = false; scene.add(box); grp.userData.box = box;
   const fp = new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.MeshBasicMaterial({color:0x00aaff, transparent:true, opacity:.18, depthWrite:false}));
   fp.visible = false; scene.add(fp); grp.userData.fp = fp;
   scene.add(grp); return grp;
-});
+};
+function buildObjs(){ boardObjs.forEach(o=>{ scene.remove(o); scene.remove(o.userData.fp); scene.remove(o.userData.box); }); boardObjs = layout.map(makeObj); }
+buildObjs();
 
 // perfboard with drilled-look hole texture
-let plate = null;
-function buildPlate(u0,u1,v0,v1){
-  if (plate){ scene.remove(plate); plate.geometry.dispose(); plate.material.forEach?.(m=>{m.map&&m.map.dispose(); m.dispose();}); }
-  const W=u1-u0, H=v1-v0, px=12, cw=Math.round(W/P*px), ch=Math.round(H/P*px);
-  const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch; const x=cv.getContext("2d");
-  x.fillStyle="#c9a36b"; x.fillRect(0,0,cw,ch); x.fillStyle="#7a5a2c";
-  for (let k=-200;k<200;k++){ const u=GU0+k*P; if(u<u0+0.8||u>u1-0.8) continue;
-    for (let j=-50;j<400;j++){ const v=j*P; if(v<v0+0.8||v>v1-0.8) continue;
-      x.beginPath(); x.arc((u-u0)/W*cw, ch-(v-v0)/H*ch, px*0.2, 0, Math.PI*2); x.fill(); } }
-  const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
+const plateGrp = new THREE.Group(); scene.add(plateGrp); let plate2 = null;
+function buildPlate(u0,u1,v0,v1,E2){
+  plateGrp.traverse(o=>{ if (o.geometry) o.geometry.dispose(); }); plateGrp.clear();
   const side = new THREE.MeshStandardMaterial({color:0xb08a52, roughness:.8});
-  const face = new THREE.MeshStandardMaterial({map:tex, roughness:.85});
-  plate = new THREE.Mesh(new THREE.BoxGeometry(W,H,PLATE_T), [side,side,side,side,face,face]);
-  plate.position.set((u0+u1)/2,(v0+v1)/2,PLATE_TOP-PLATE_T/2); scene.add(plate);
+  const one = (top,[u0,u1,v0,v1]) => { const W=u1-u0, H=v1-v0, px=12, cw=Math.round(W/P*px), ch=Math.round(H/P*px);
+    const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch; const x=cv.getContext("2d");
+    x.fillStyle="#c9a36b"; x.fillRect(0,0,cw,ch); x.fillStyle="#7a5a2c";
+    for (let k=-200;k<200;k++){ const u=GU0+k*P; if(u<u0+0.8||u>u1-0.8) continue;
+      for (let j=-50;j<400;j++){ const v=j*P; if(v<v0+0.8||v>v1-0.8) continue;
+        x.beginPath(); x.arc((u-u0)/W*cw, ch-(v-v0)/H*ch, px*0.2, 0, Math.PI*2); x.fill(); } }
+    const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4; const face = new THREE.MeshStandardMaterial({map:tex, roughness:.85});
+    const m = new THREE.Mesh(new THREE.BoxGeometry(W,H,PLATE_T), [side,side,side,side,face,face]);
+    m.position.set((u0+u1)/2,(v0+v1)/2,top-PLATE_T/2); plateGrp.add(m); return m; };
+  one(BTOP[1],[u0,u1,v0,v1]); plate2 = MODE==="sandwich" ? one(BTOP[2], E2||[u0,u1,v0,v1]) : null; if (plate2) plate2.visible = $("tB2").checked;
 }
 // tube + axis
 const tubeGrp = new THREE.Group(); scene.add(tubeGrp);
@@ -310,25 +313,31 @@ function wire(pts, color){ const c = new THREE.CatmullRomCurve3(pts.map(p=>new T
   wireGrp.add(new THREE.Mesh(new THREE.TubeGeometry(c, 160, 0.55, 8, false), new THREE.MeshStandardMaterial({color, roughness:.5}))); }
 function buildWires(G, v0){
   wireGrp.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material){ o.material.map&&o.material.map.dispose(); o.material.dispose(); } }); wireGrp.clear();
-  const back = PLATE_TOP - PLATE_T - 6;
+  const back = MODE==="sandwich" ? (BTOP[1]-PLATE_T+BTOP[2])/2 : PLATE_TOP - PLATE_T - 6;   // sandwich: feed runs in the gap between the boards
   const pyroIdx = layout.map((b,i)=>b.type==="PYRO"?i:-1).filter(i=>i>=0);
   const end = Math.min(v0, ...pyroIdx.map(i=>G[i].v0)) - 40;
   pyroIdx.forEach(i=>{ const g=G[i], fid = layout[i].id.replace("PYRO","MOSFET"), fi = layout.findIndex(b=>b.id===fid);
     const cx=(g.u0+g.u1)/2, top=g.v1;
     if (fi<0){ return; } const F=G[fi];
-    const drain=[F.ou+2.54, F.ov, PLATE_TOP+0.6];                         // middle lead = drain
-    const plus =[F.ou-2.2,  F.ov+1.0, PLATE_TOP+0.6];                     // + side, from that channel's arming switch
-    wire([[cx+1.2, top-0.5, g.nb], [cx+1.2, top+4, g.nb+1], [drain[0], drain[1]-6, PLATE_TOP+3], drain], 0x222222);
-    wire([[cx-1.2, top-0.5, g.nb], [cx-1.2, top+4, g.nb+1], [plus[0], plus[1]-7, PLATE_TOP+3], plus], 0xd62828); });
+    const drain=[F.ou+2.54, F.ov, F.pt+0.6];                         // middle lead = drain
+    const plus =[F.ou-2.2,  F.ov+1.0, F.pt+0.6];                     // + side, from that channel's arming switch
+    wire([[cx+1.2, top-0.5, g.nb], [cx+1.2, top+4, g.nb+1], [drain[0], drain[1]-6, F.pt+3], drain], 0x222222);
+    wire([[cx-1.2, top-0.5, g.nb], [cx-1.2, top+4, g.nb+1], [plus[0], plus[1]-7, F.pt+3], plus], 0xd62828); });
   const bi = layout.findIndex(b=>b.type==="BATT");
   if (bi>=0 && pyroIdx.length){ const B=G[bi];
     for (const [col,du] of [[0xff7a00,-1.0],[0x222222,1.0]])   // battery feed to the pyro channels, behind the plate
       wire([[du+4,B.v0+1,B.nb],[du+4,B.v0-4,back],[du+4,(B.v0+v0)/2,back],[du+4,v0+4,back],[du+4,v0+1,back+3]], col);
     const lab = makeLabel("batt feed"); lab.position.set(16,(B.v0+v0)/2,back-3); wireGrp.add(lab); }
+  const ki = layout.findIndex(b=>b.type==="BUCK");
+  if (bi>=0 && ki>=0 && boardObjs[ki].visible){ const B=G[bi], K=G[ki], ku=(K.u0+K.u1)/2;      // battery -> buck input
+    for (const [col,du] of [[0xff7a00,-0.8],[0x222222,0.8]])
+{ const zo = K.back ? K.nbot-1.5 : K.ntop+2, ze = K.back ? K.nbot : K.ntop;
+      wire([[ku+du,B.v0+1,B.nb],[ku+du,B.v0-5,zo],[ku+du,K.v1+5,zo],[ku+du,K.v1-1.5,ze]], col); } }
 }
 const axisGrp = new THREE.Group(); scene.add(axisGrp);
 const mountGrp = new THREE.Group(); scene.add(mountGrp);
-function buildMount(){ mountGrp.clear(); if (MOUNT==="none") return; mountGrp.add(proto[MOUNT==="v1" ? "MOUNT_V1" : "MOUNT_V2"].clone()); }
+function buildMount(){ mountGrp.clear(); if (mnt()==="none") return;
+  mountGrp.add(proto[(MODE==="single" ? "MOUNT_V" : "MOUNT_S") + (mnt()==="v1" ? "1" : "2")].clone()); }
 function buildTube(v0,v1){
   tubeGrp.clear(); axisGrp.clear(); const h=v1-v0+30, cy=(v0+v1)/2;
   const t = new THREE.Mesh(new THREE.CylinderGeometry(TUBE_R,TUBE_R,h,64,1,true), new THREE.MeshStandardMaterial({color:0x8899aa, transparent:true, opacity:.1, side:THREE.DoubleSide, depthWrite:false}));
@@ -345,8 +354,13 @@ function evaluate(){
   const issues = layout.map(()=>[]); const warns = layout.map(()=>[]);
   for (let i=0;i<G.length;i++) for (let j=i+1;j<G.length;j++){
     const a=G[i], b=G[j];
-    const face = k => offPlate(layout[k]) ? "off" : (G[k].back ? "back" : "front");
-    if (face(i) !== face(j)) continue;
+    const face = k => offPlate(layout[k]) ? "off" : G[k].brd===0 ? "all" : G[k].brd+(G[k].back ? "back" : "front");
+    const fi = face(i), fj = face(j), thru = (fi==="all" && fj!=="off") || (fj==="all" && fi!=="off");      // standoffs pass through both boards
+    const gap = (fi==="1back" && fj==="2front") || (fi==="2front" && fj==="1back");                          // both sit in the space between the boards
+    if (fi !== fj && !thru && !gap) continue;
+    const hitR = (r,q) => r.u0<q.u1-0.05 && q.u0<r.u1-0.05 && r.v0<q.v1-0.05 && q.v0<r.v1-0.05;
+    if (thru && (a.body||b.body)){ const k = a.body ? a : b, sp = a.body ? b : a;      // a standoff beside the antenna keep-out is allowed (use nylon there)
+      if (!hitR(sp,k.body) && !hitR(sp,k.koR)) continue; }
     if (a.u0<b.u1-0.05 && b.u0<a.u1-0.05 && a.v0<b.v1-0.05 && b.v0<a.v1-0.05){ issues[i].push("overlaps "+layout[j].id); issues[j].push("overlaps "+layout[i].id); }
   }
   const onPlate = layout.map(b=>!offPlate(b));
@@ -354,7 +368,7 @@ function evaluate(){
   G.forEach((g,i)=>{ if(!onPlate[i] && g.v0 < pv1+1 && g.v1 > pv0-1) issues[i].push("clashes with perfboard"); });
   layout.forEach((b,i)=>{ const L=LIB[b.type]; if (offPlate(b) || L.box) return; const g=G[i], sg=g.back?-1:1;
     const pts = L.pins.map(p=>rot(b.r,p)).map(p=>[sg*p[0]+g.ou, p[1]+g.ov]);
-    layout.forEach((c,j)=>{ if (j===i || offPlate(c) || G[j].back===g.back) return; const h=G[j];
+    layout.forEach((c,j)=>{ if (j===i || offPlate(c) || G[j].back===g.back || G[j].brd!==g.brd) return; const h=G[j];
       if (pts.some(([u,v])=>u>h.u0+0.3&&u<h.u1-0.3&&v>h.v0+0.3&&v<h.v1-0.3)) warns[i].push(`pins under ${c.id}: trim flush`); }); });
   G.forEach((g,i)=>{ const u=Math.max(Math.abs(g.u0),Math.abs(g.u1)); const rr=Math.max(Math.hypot(u,g.ntop),Math.hypot(u,g.nbot)); if (rr>TUBE_R) issues[i].push("hits tube wall"); g.rmax=rr; });
   return {G, issues, warns};
@@ -364,23 +378,30 @@ function update(){
   layout.forEach((b,i)=>{ const o=boardObjs[i], g=G[i]; o.position.set(g.ou,g.ov,g.nb);
     const qz=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), b.r*Math.PI/2);
     if (g.back) o.quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI).multiply(qz); else o.quaternion.copy(qz);
-    o.userData.box.visible = (i===selected); o.userData.box.update();
-    o.visible = !(MOUNT==="v2" && b.id==="BUZZER");          // V2 moves the buzzer to the front (part of the mount model)
-    const fp=o.userData.fp; fp.scale.set(g.u1-g.u0,g.v1-g.v0,1); fp.position.set((g.u0+g.u1)/2,(g.v0+g.v1)/2, g.back? PLATE_TOP-PLATE_T-0.05 : PLATE_TOP+0.05);
-    fp.material.color.set(issues[i].length? 0xff3b30 : 0x00aaff); fp.visible = $("tFoot").checked || issues[i].some(s=>s.startsWith("overlaps")); });
-  const GP = G.filter((g,i)=>!offPlate(layout[i]));
+    
+    o.visible = !(MODE==="single" && mnt()==="v2" && b.id==="BUZZER") && !(g.brd===2 && !$("tB2").checked);          // V2 moves the buzzer to the front (part of the mount model)
+    const fp=o.userData.fp; fp.scale.set(g.u1-g.u0,g.v1-g.v0,1); fp.position.set((g.u0+g.u1)/2,(g.v0+g.v1)/2, g.back? g.pt-PLATE_T-0.05 : g.pt+0.05);
+    o.updateMatrixWorld(true); o.userData.box.visible = (i===selected) && o.visible; o.userData.box.update();
+    fp.material.color.set(issues[i].length? 0xff3b30 : 0x00aaff); fp.visible = o.visible && ($("tFoot").checked || issues[i].some(s=>s.startsWith("overlaps"))); });
+  const GP = G.filter((g,i)=>!offPlate(layout[i])).map(g=>g.body||g);       // the antenna keep-out may hang past the board edge
   let u0=Math.floor((Math.min(...GP.map(g=>g.u0))-1.5-GU0)/P)*P+GU0+P/2, u1=Math.ceil((Math.max(...GP.map(g=>g.u1))+1.5-GU0)/P)*P+GU0-P/2;
   let v0=Math.floor((Math.min(...GP.map(g=>g.v0))-1.5)/P)*P+P/2, v1=Math.ceil((Math.max(...GP.map(g=>g.v1))+1.5)/P)*P-P/2;
   const vAll1 = Math.max(...G.map(g=>g.v1));
-  if (MOUNT!=="none") [u0,u1,v0,v1] = MOUNT_EXT[MOUNT];
-  const ext=[u0,u1,v0,v1].map(v=>v.toFixed(2)).join()+MOUNT;
+  let E2 = null;
+  if (mnt()!=="none" && MODE==="single") [u0,u1,v0,v1] = MOUNT_EXT[mnt()];
+  if (mnt()!=="none" && MODE==="sandwich") { [u0,u1,v0,v1] = MOUNT_EXT_S[mnt()][1]; E2 = MOUNT_EXT_S[mnt()][2]; }
+  const ext=[u0,u1,v0,v1].map(v=>v.toFixed(2)).join()+mnt()+MODE;
   const vAll0 = Math.min(...G.map(g=>g.v0));
-  if (ext+vAll1+"/"+vAll0!==lastExtent){ buildPlate(u0,u1,v0,v1); buildTube(vAll0-40,vAll1); lastExtent=ext+vAll1+"/"+vAll0; }
+  if (ext+vAll1+"/"+vAll0!==lastExtent){ buildPlate(u0,u1,v0,v1,E2); buildTube(vAll0-40,vAll1); lastExtent=ext+vAll1+"/"+vAll0; }
   buildWires(G, v0);
-  const W=u1-u0, H=v1-v0, plateR=Math.hypot(Math.max(Math.abs(u0),Math.abs(u1)), -PLATE_TOP+PLATE_T);
+  const W=u1-u0, H=v1-v0, plateR=Math.hypot(Math.max(Math.abs(u0),Math.abs(u1)), Math.max(-PLATE_TOP+PLATE_T, MODE==="sandwich"? BTOP[2] : 0));
+  let pinGap = 99; G.forEach((a,i)=>G.forEach((c,j)=>{ if (a.brd!==1 || a.back || c.brd!==2 || !c.back || LIB[layout[i].type].box || LIB[layout[j].type].box) return;
+    const A=a.body||a, C=c.body||c; if (A.u0<C.u1 && C.u0<A.u1 && A.v0<C.v1 && C.v0<A.v1) pinGap = Math.min(pinGap, a.nbot - c.ntop); }));
+  const stackLen = Math.max(...G.map(g=>g.v1)) - Math.min(...G.map(g=>g.v0));
   const onAxis = layout.filter((b,i)=>LIB[b.type].kind==="IMU" && Math.hypot(G[i].icU,G[i].icN)<0.05).length;
   const nIMU = layout.filter(b=>LIB[b.type].kind==="IMU").length, nIss = issues.filter(x=>x.length).length;
-  $("summary").innerHTML = `Perfboard ${W.toFixed(1)} × ${H.toFixed(1)} mm · ${Math.round(W/P)} × ${Math.round(H/P)} holes · face ${(-PLATE_TOP).toFixed(2)} mm off axis<br>`+
+  $("summary").innerHTML = (MODE==="sandwich" ? `<b>Sandwich:</b> 2 perfboards back-to-back, parts facing out · ${SPACER} mm standoffs · untrimmed pin tips ${pinGap<99? (pinGap<0? `<span style="color:var(--warn)">overlap ${(-pinGap).toFixed(1)} mm (trim)</span>` : pinGap.toFixed(1)+" mm apart") : "n/a"} · charges-to-battery ${stackLen.toFixed(0)} mm<br>` : `<b>Single board</b> · charges-to-battery ${stackLen.toFixed(0)} mm<br>`)+
+    `Perfboard ${W.toFixed(1)} × ${H.toFixed(1)} mm · ${Math.round(W/P)} × ${Math.round(H/P)} holes · face ${(-PLATE_TOP).toFixed(2)} mm off axis<br>`+
     `IMUs exactly on axis: <b>${onAxis}/${nIMU}</b> · ${nIss? `<span style="color:var(--bad)">${nIss} board(s) with problems</span>` : `<span style="color:var(--ok)">no collisions</span>`}`+
     (plateR>TUBE_R? ` · <span style="color:var(--bad)">plate too wide for Ø64</span>`:"");
   // list
@@ -389,40 +410,50 @@ function update(){
     const off=Math.hypot(g.icU,g.icN); let chip;
     if (issues[i].length) chip=`<span class="chip bad">${issues[i][0]}</span>`;
     else if (warns[i].length) chip=`<span class="chip warn">${warns[i][0]}</span>`;
+    else if (L.kind==="Spacer") chip=`<span class="chip info">standoff</span>`;
     else if (L.kind==="MCU") chip=`<span class="chip info">MCU</span>`;
     else if (L.kind==="Power") chip=`<span class="chip info">power</span>`;
     else if (L.kind==="Storage") chip=`<span class="chip info">storage</span>`;
     else if (L.kind==="Pyro" || (L.kind==="Batt" && !g.back)) chip=`<span class="chip info">off board</span>`;
     else if (L.kind==="Batt") chip=`<span class="chip info">battery · back</span>`;
     else chip = off<0.05? `<span class="chip ok">on axis</span>` : off<0.5? `<span class="chip warn">${off.toFixed(2)} mm off</span>` : `<span class="chip ${L.kind==="Baro"?"warn":"bad"}">${off.toFixed(1)} mm off</span>`;
-    return `<button class="row ${i===selected?"sel":""}" data-i="${i}"><span class="nm">${b.id}</span>${chip}<span class="meta">${PROTO[b.id]? PROTO[b.id]+" · " : ""}${g.back?"BACK face · ":""}${L.label} · rot ${b.r*90}° · IC at ${g.icV.toFixed(1)} mm</span></button>`; }).join("");
+    return `<button class="row ${i===selected?"sel":""}" data-i="${i}"><span class="nm">${b.id}</span>${chip}<span class="meta">${PROTO[b.id]? PROTO[b.id]+" · " : ""}${MODE==="sandwich"&&g.brd? "board "+g.brd+" · ":""}${g.back?"BACK face · ":""}${L.label} · rot ${b.r*90}° · IC at ${g.icV.toFixed(1)} mm</span></button>`; }).join("");
   // readout
   const b=layout[selected], g=G[selected], L=LIB[b.type];
   const colName = k => k>=0? `R${k+1}` : `L${-k}`;
   $("readout").innerHTML = `<dt>Board</dt><dd>${b.id}</dd><dt>IC across</dt><dd>${g.icU>=0?"+":""}${g.icU.toFixed(2)} mm</dd>`+
     `<dt>IC normal</dt><dd>${g.icN>=0?"+":""}${g.icN.toFixed(2)} mm</dd><dt>IC along axis</dt><dd>${(g.icV-v0).toFixed(1)} mm</dd>`+
-    `<dt>Pin 1 hole</dt><dd>${colName(b.cu)} · row ${Math.round((b.cv*P-(v0+P/2))/P)+1}</dd><dt>Rotation</dt><dd>${b.r*90}°</dd><dt>Face</dt><dd>${offPlate(b)?"off board":(g.back?"back":"front")}</dd>`;
+    `<dt>Pin 1 hole</dt><dd>${colName(b.cu)} · row ${Math.round((b.cv*P-(v0+P/2))/P)+1}</dd><dt>Rotation</dt><dd>${b.r*90}°</dd><dt>Face</dt><dd>${offPlate(b)?"off board":g.brd===0?"both boards":(MODE==="sandwich"?"board "+g.brd+" ":"")+(g.back?"back":"front")}</dd>`;
   save();
 }
 function move(du,dv){ const b=layout[selected]; b.cu+=du; b.cv+=dv; update(); }
 function rotate(){ // rotate 90° about the board centre, then snap back onto the grid
   const b=layout[selected], [cu0,cv0]=centerOf(b); b.r=(b.r+1)%4; placeCenter(b,cu0,cv0); update(); }
 function flip(){ // move the selected board between the front (sensor) face and the back face of the perfboard
-  const b=layout[selected], L=LIB[b.type]; if (L.kind==="Pyro") return;
+  const b=layout[selected], L=LIB[b.type]; if (L.kind==="Pyro" || L.kind==="Spacer") return;
   const [cu0,cv0]=centerOf(b); b.face = (b.face==="back") ? "front" : "back";
   if (L.kind==="Batt" && b.face==="front") b.face = undefined;    // battery: back face <-> free block above the plate
   placeCenter(b,cu0,cv0); update(); }
+function swapBoard(){ const b=layout[selected], L=LIB[b.type]; if (MODE!=="sandwich" || offPlate(b) || L.kind==="Spacer") return;
+  b.brd = (b.brd===2) ? 1 : 2; b.face = b.brd===2 ? "back" : "front"; update(); }
+function setMode(m){ MODE=m; try{localStorage.setItem("sensorPlateMode",MODE);}catch(e){} layout = loadLayout(); buildObjs();
+  selected = layout.findIndex(b=>b.type==="LSM6DSO"); lastExtent=""; $("tB2").parentElement.hidden = MODE!=="sandwich"; $("mBrd").disabled = MODE!=="sandwich";
+  buildMount(); update(); setView("iso"); }
+$("mBrd").onclick=swapBoard; $("tMode").value=MODE; $("tMode").onchange=()=>setMode($("tMode").value);
+$("tB2").onchange=()=>{ if (plate2) plate2.visible=$("tB2").checked; update(); };
+$("tB2").parentElement.hidden = MODE!=="sandwich"; $("mBrd").disabled = MODE!=="sandwich";
 $("mUp").onclick=()=>move(0,1); $("mDown").onclick=()=>move(0,-1); $("mLeft").onclick=()=>move(-1,0); $("mRight").onclick=()=>move(1,0); $("mRot").onclick=rotate; $("mFlip").onclick=flip;
 $("list").addEventListener("click", e=>{ const r=e.target.closest(".row"); if(r){ selected=+r.dataset.i; update(); }});
 window.addEventListener("keydown", e=>{ if (e.target.tagName==="TEXTAREA") return;
   const m={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];
-  if (m){ e.preventDefault(); move(...m); } else if (e.key==="r"||e.key==="R") rotate(); else if (e.key==="f"||e.key==="F") flip(); });
+  if (m){ e.preventDefault(); move(...m); } else if (e.key==="r"||e.key==="R") rotate(); else if (e.key==="f"||e.key==="F") flip(); else if (e.key==="b"||e.key==="B") swapBoard(); });
 $("tFoot").onchange=update;
 $("tMount").value=MOUNT; $("tMount").onchange=()=>{ MOUNT=$("tMount").value; try{localStorage.setItem("sensorPlateMount",MOUNT);}catch(e){} buildMount(); update(); }; $("tTube").onchange=()=>{tubeGrp.visible=$("tTube").checked}; $("tAxis").onchange=()=>{axisGrp.visible=$("tAxis").checked};
 $("bReset").onclick=()=>{ layout.splice(0,layout.length,...defaultLayout()); update(); };
 $("bCopy").onclick=async()=>{ const {G}=evaluate();
   const txt=JSON.stringify({units:"mm, grid 2.54; cu=hole column (0 = first hole right of axis is cu 1, left is cu 0 at -1.27); cv=hole row", plate_face_offset:-PLATE_TOP,
-    boards:layout.map((b,i)=>({id:b.id,type:b.type,face:offPlate(b)?"off":(G[i].back?"back":"front"),rot_deg:b.r*90,cu:b.cu,cv:b.cv,ic_across:+G[i].icU.toFixed(3),ic_normal:+G[i].icN.toFixed(3),ic_along:+G[i].icV.toFixed(2)}))},null,1);
+    layout:MODE, standoff_mm:MODE==="sandwich"?SPACER:undefined,
+    boards:layout.map((b,i)=>({id:b.id,type:b.type,board:G[i].brd,face:offPlate(b)?"off":(G[i].back?"back":"front"),rot_deg:b.r*90,cu:b.cu,cv:b.cv,ic_across:+G[i].icU.toFixed(3),ic_normal:+G[i].icN.toFixed(3),ic_along:+G[i].icV.toFixed(2)}))},null,1);
   const ta=$("out"); ta.value=txt; ta.hidden=false;
   try{ await navigator.clipboard.writeText(txt); $("bCopy").textContent="Copied — paste it to Claude"; }
   catch(err){ ta.focus(); ta.select(); $("bCopy").textContent="Select the text below and copy"; }
@@ -433,7 +464,7 @@ const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let down=null;
 canvas.addEventListener("pointerdown",e=>{down=[e.clientX,e.clientY]});
 canvas.addEventListener("pointerup",e=>{ if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>4) return;
   const r=canvas.getBoundingClientRect(); mouse.set((e.clientX-r.left)/r.width*2-1, -(e.clientY-r.top)/r.height*2+1);
-  ray.setFromCamera(mouse,camera); const hit=ray.intersectObjects(boardObjs,true).find(h=>h.object.type==="Mesh");
+  ray.setFromCamera(mouse,camera); const hit=ray.intersectObjects(boardObjs.filter(o=>o.visible),true).find(h=>h.object.type==="Mesh");
   if(hit){ let o=hit.object; while(o && o.userData.idx===undefined) o=o.parent; if(o){selected=o.userData.idx; update();} } });
 
 // views

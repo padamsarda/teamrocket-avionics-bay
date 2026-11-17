@@ -45,30 +45,57 @@ footer{color:var(--muted);font-size:13px}
 <main>
 <header>
   <h1>TeamRocket Avionics Bay</h1>
-  <p class="lede">Flight computer bay for a Ø70 mm (64 mm ID) rocket: three IMUs and three barometers on one vertical perfboard with every IMU chip centred on the rocket axis, an ESP32, SD logging, two independent pyro channels and a removable printed mount.</p>
+  <p class="lede">Flight computer bay for a Ø70 mm (64 mm ID) rocket. Two perfboards sit back to back, both with parts facing out. The sensor board carries three IMUs and three barometers with every IMU chip centred on the rocket axis, plus the pyro MOSFETs and buzzer. The second board carries the ESP32, SD logging and the 3.3 V buck. Two removable printed mounts.</p>
 </header>
 
 <div class="hero">
   <div>
     <h2>Interactive 3D layout</h2>
     <p class="sub">Every board as a real 3D model. Move or rotate parts hole by hole, flip them to the back face, see IC-to-axis offsets and collisions live, and switch between the two mount designs.</p>
-    <div class="facts"><span>3/3 IMUs on axis</span><span>2.54 mm grid</span><span>Ø64 tube check</span><span>V1 / V2 mounts</span></div>
+    <div class="facts"><span>3/3 IMUs on axis</span><span>2.54 mm grid</span><span>Ø64 tube check</span><span>2-board sandwich</span><span>V1 / V2 mounts</span></div>
     <a class="btn" href="viewer/">Open the 3D viewer →</a>
   </div>
-<pre>        [ 2S 600 mAh LiPo ]
- ══════ TOP CAP Ø63.4 ══════  switches · battery feed
-   ┃ ESP32 + SD (back)     ┃
-   ┃ BMI270 ×2 · LSM6DSO   ┃  ← chips on the axis
-   ┃ MS5611 · BMP280 ×2    ┃
-   ┃ FET A │ FET B         ┃
- ══════ BOTTOM PLATFORM ════  gas seal · charge wires
-      (charge A) (charge B)
-   2 × M4 rods clamp the stack</pre>
+<pre>          [ 2S 600 mAh LiPo ]
+ ═══════════ TOP CAP Ø63.4 ═══════════  switches · battery feed
+   board 1 (front)  ┃8mm┃  board 2 (back)
+   buzzer           ┃   ┃  buck
+   BMI270 ×2        ┃ ← chips on the axis
+   LSM6DSO          ┃   ┃  ESP32
+   MS5611 · BMP×2   ┃   ┃  SD card
+   FET A · FET B    ┃   ┃
+ ═══════════ BOTTOM PLATFORM ══════════  charge wires
+          (charge A) (charge B)
+   2 × M4 rods · 6 × M3 standoffs</pre>
 </div>
 
+<section id="sandwich">
+  <h2>Bay mounts — sandwich layout (current)</h2>
+  <p class="sub">Board 1 (sensors, MOSFETs, buzzer) and board 2 (ESP32, SD, buck) are joined by six M3 × 8 standoffs into a stiff box. V1: board 1's edges run in two full-length grooved rails, and the sandwich slides down from the top. V2: board 1 bolts through six rubber grommets, no more than 76 mm apart, to an open frame behind its edges. Board 2 nests inside the frame, and the sandwich lifts straight off. Print in PETG. Both are interference-checked and stay within R 31.4 mm.</p>
+  <div class="pics">
+    <figure><img src="cad/mounts_sandwich/Sandwich_V1_slide_rails/Sandwich_V1_views.png" alt="Sandwich V1 slide-in rails: front, side and cross-section views" loading="lazy"><figcaption>V1 — slide-in rails · board 1 50.8 × 172.7 mm · 177 mm between platforms</figcaption></figure>
+    <figure><img src="cad/mounts_sandwich/Sandwich_V2_backplate_frame/Sandwich_V2_views.png" alt="Sandwich V2 backplate frame with grommets: front, side and cross-section views" loading="lazy"><figcaption>V2 — frame + 6 grommets · board 1 58.4 × 172.7 mm · 185 mm between platforms</figcaption></figure>
+  </div>
+  <div class="tbl"><table><thead><tr><th>File</th><th>What it is</th><th class="num">Size</th></tr></thead><tbody>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V1_slide_rails/S1_lower_platform_with_rails.step" download>S1_lower_platform_with_rails.step</a></td><td>V1 — slide-in rails · Part CAD</td><td class="num">111 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V1_slide_rails/S1_lower_platform_with_rails.stl" download>S1_lower_platform_with_rails.stl</a></td><td>V1 — slide-in rails · Print file</td><td class="num">68 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V1_slide_rails/S1_top_cap.step" download>S1_top_cap.step</a></td><td>V1 — slide-in rails · Part CAD</td><td class="num">76 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V1_slide_rails/S1_top_cap.stl" download>S1_top_cap.stl</a></td><td>V1 — slide-in rails · Print file</td><td class="num">104 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V1_slide_rails/Sandwich_V1_slide_rails_ASSEMBLY.step" download>Sandwich_V1_slide_rails_ASSEMBLY.step</a></td><td>V1 — slide-in rails · Assembly (mount + both boards, public stand-ins)</td><td class="num">40.0 MB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V1_slide_rails/Sandwich_V1_views.png" download>Sandwich_V1_views.png</a></td><td>V1 — slide-in rails · Preview: front, side, cross-section</td><td class="num">157 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V2_backplate_frame/S2_lower_platform_with_frame.step" download>S2_lower_platform_with_frame.step</a></td><td>V2 — backplate frame + 6 grommets · Part CAD</td><td class="num">186 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V2_backplate_frame/S2_lower_platform_with_frame.stl" download>S2_lower_platform_with_frame.stl</a></td><td>V2 — backplate frame + 6 grommets · Print file</td><td class="num">221 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V2_backplate_frame/S2_top_cap.step" download>S2_top_cap.step</a></td><td>V2 — backplate frame + 6 grommets · Part CAD</td><td class="num">64 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V2_backplate_frame/S2_top_cap.stl" download>S2_top_cap.stl</a></td><td>V2 — backplate frame + 6 grommets · Print file</td><td class="num">104 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V2_backplate_frame/Sandwich_V2_backplate_frame_ASSEMBLY.step" download>Sandwich_V2_backplate_frame_ASSEMBLY.step</a></td><td>V2 — backplate frame + 6 grommets · Assembly (mount + both boards, public stand-ins)</td><td class="num">40.8 MB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/Sandwich_V2_backplate_frame/Sandwich_V2_views.png" download>Sandwich_V2_views.png</a></td><td>V2 — backplate frame + 6 grommets · Preview: front, side, cross-section</td><td class="num">196 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/README.md" download>README.md</a></td><td>Board sizes, hardware list, assembly and removal</td><td class="num">2 kB</td></tr>
+<tr><td><a href="cad/mounts_sandwich/mount_report.json" download>mount_report.json</a></td><td>Mount dimensions (boards, rods, grommets, standoffs)</td><td class="num">1 kB</td></tr>
+  </tbody></table></div>
+</section>
+
 <section id="mounts">
-  <h2>Bay mounts</h2>
-  <p class="sub">Two printable mounts built around the current layout. V1: the perfboard slides down grooved side rails into pockets. V2: the perfboard bolts to a printed backplate through four rubber grommets. Print in PETG.</p>
+  <h2>Bay mounts — single long board (superseded)</h2>
+  <p class="sub">The earlier one-board layout (45.7 × 246 mm), kept for reference. It is still available as "Single board (old)" in the viewer. V1: the perfboard slides down grooved side rails into pockets. V2: the perfboard bolts to a printed backplate through four rubber grommets. Print in PETG.</p>
   <div class="pics">
     <figure><img src="cad/mounts/V1_slide_rails/V1_slide_rails_views.png" alt="V1 slide-in rails: front, side and cross-section views" loading="lazy"><figcaption>V1 — slide-in rails · perfboard 45.7 × 223.5 mm</figcaption></figure>
     <figure><img src="cad/mounts/V2_backplate/V2_backplate_views.png" alt="V2 backplate: front, side and cross-section views" loading="lazy"><figcaption>V2 — backplate + grommets · perfboard 45.7 × 246.4 mm</figcaption></figure>
@@ -120,6 +147,7 @@ footer{color:var(--muted);font-size:13px}
 <section id="layout">
   <h2>Layout data</h2>
   <div class="tbl"><table><thead><tr><th>File</th><th>What it is</th><th class="num">Size</th></tr></thead><tbody>
+<tr><td><a href="cad/layout/layout_sandwich_from_viewer.json" download>layout_sandwich_from_viewer.json</a></td><td>Sandwich layout: exact placements, board numbers and standoffs, exported from the viewer</td><td class="num">11 kB</td></tr>
 <tr><td><a href="cad/layout/layout_from_viewer.json" download>layout_from_viewer.json</a></td><td>Exact board placements exported from the viewer</td><td class="num">7 kB</td></tr>
 <tr><td><a href="cad/layout/sensor_plate_placement_v0.csv" download>sensor_plate_placement_v0.csv</a></td><td>First on-axis plate: pin-1 holes and IC offsets</td><td class="num">0 kB</td></tr>
   </tbody></table></div>
@@ -150,6 +178,10 @@ footer{color:var(--muted);font-size:13px}
 <tr><td><a href="scripts/build_public_standins.py" download>build_public_standins.py</a></td><td>Public stand-ins for GrabCAD boards</td><td class="num">5 kB</td></tr>
 <tr><td><a href="scripts/build_bmp280_from_grabcad.py" download>build_bmp280_from_grabcad.py</a></td><td>Re-orient + mark your own GrabCAD BMP280 download</td><td class="num">4 kB</td></tr>
 <tr><td><a href="scripts/reorient_mark_grabcad.py" download>reorient_mark_grabcad.py</a></td><td>Re-orient + mark your own GY-63 / DevKitC downloads</td><td class="num">3 kB</td></tr>
+<tr><td><a href="scripts/build_sandwich_mounts.py" download>build_sandwich_mounts.py</a></td><td>Both sandwich mounts (V1 rails, V2 frame + grommets)</td><td class="num">14 kB</td></tr>
+<tr><td><a href="scripts/clash_check.py" download>clash_check.py</a></td><td>Interference check: printed parts vs every other solid in an assembly</td><td class="num">1 kB</td></tr>
+<tr><td><a href="scripts/export_sandwich_mount_meshes.py" download>export_sandwich_mount_meshes.py</a></td><td>Sandwich mount meshes for the viewer</td><td class="num">2 kB</td></tr>
+<tr><td><a href="scripts/dump_layout_from_viewer.js" download>dump_layout_from_viewer.js</a></td><td>Export the viewer layout to JSON (headless, Playwright)</td><td class="num">2 kB</td></tr>
 <tr><td><a href="scripts/build_bay_mounts.py" download>build_bay_mounts.py</a></td><td>Both bay mounts (V1 rails, V2 backplate)</td><td class="num">12 kB</td></tr>
 <tr><td><a href="scripts/render_views.py" download>render_views.py</a></td><td>Front/side/section previews</td><td class="num">2 kB</td></tr>
 <tr><td><a href="scripts/export_viewer_meshes.py" download>export_viewer_meshes.py</a></td><td>Board meshes for the viewer</td><td class="num">2 kB</td></tr>
